@@ -53,10 +53,10 @@ private:
 class Bot {
 	friend Board;
 public:
-	void MoveU() { pos_r--; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "u";}// ("<<pos_r<<", "<<pos_c<<")\n"; }
-	void MoveR() { pos_c++; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "r"; }//(" << pos_r << ", " << pos_c << ")\n"; }
-	void MoveD() { pos_r++; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "d"; }//(" << pos_r << "," << pos_c << ")\n"; }
-	void MoveL() { pos_c--; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "l"; }//(" << pos_r << "," << pos_c << ")\n"; }
+	void MoveU() { pos_r--; Path.push(make_pair(pos_r, pos_c)); energy--;}// ("<<pos_r<<", "<<pos_c<<")\n"; }
+	void MoveR() { pos_c++; Path.push(make_pair(pos_r, pos_c)); energy--;}//(" << pos_r << ", " << pos_c << ")\n"; }
+	void MoveD() { pos_r++; Path.push(make_pair(pos_r, pos_c)); energy--;}//(" << pos_r << "," << pos_c << ")\n"; }
+	void MoveL() { pos_c--; Path.push(make_pair(pos_r, pos_c)); energy--; }//(" << pos_r << "," << pos_c << ")\n"; }
 	queue<pair<int, int>> AnsPath() { return Path; }
 	void SetPlace(int i, int j) { pos_c = i; pos_r = j; }
 	void SetMaxEnergy(int e) { maxEnergy = e; }
@@ -80,7 +80,6 @@ private:
 };
 
 void Bot::DirectWalking(Board* board) {
-	//cout << "direct walking\n";
 	//if all cleaned, return 
 	bool haveToClean = true;
 	enum direc
@@ -88,7 +87,6 @@ void Bot::DirectWalking(Board* board) {
 		up, right, down, left
 	};
 	while (true) {
-		cout << "direct round start, ";
 		haveToClean = false;
 		//check the goal: maxDist(x,y) && state == 0
 		int maxDistr = board->maxDistR, maxDistc = board->maxDistC;
@@ -109,7 +107,7 @@ void Bot::DirectWalking(Board* board) {
 
 		if (!haveToClean)
 			break;
-		cout << "(" << maxDistr << "," << maxDistc << ")\n";
+		
 
 		board->SetAsClean(maxDistr, maxDistc);
 
@@ -181,11 +179,9 @@ void Bot::DirectWalking(Board* board) {
 		//need to walk back
 		this->WalkBack(board);
 	}
-	cout << "finish direct walking\n";
 }
 
 void Board::DistCal(int r, int c) {
-	cout << "r:" << r << ",c:" << c << endl;
 	//(x,y) is the start
 	//use while loop build up the distance map
 	//BFS, queue
@@ -198,30 +194,23 @@ void Board::DistCal(int r, int c) {
 		r = q.front().first;
 		c = q.front().second;
 		q.pop();
-		//cout << "cur:(" << r << "," << c << ")---";
 		if (c + 1 < col && dist[r][c + 1] == -1 && state[r][c + 1] != 1) {// (r,c+1)
 			q.push(make_pair(r, c + 1));
 			dist[r][c + 1] = dist[r][c] + 1;
-			//cout << "push(" << r << "," << c + 1 << "): "<< dist[r][c + 1];
 		}
 		if (r + 1 < row && dist[r + 1][c] == -1 && state[r + 1][c] != 1) {//(r+1,c)
 			q.push(make_pair(r + 1, c));
 			dist[r + 1][c] = dist[r][c] + 1;
-			//cout << "push(" << r + 1 << "," << c << "): "<< dist[r + 1][c];
 		}
 		if (r > 0 && dist[r - 1][c] == -1 && state[r - 1][c] != 1) {//(r-1,c)
 			q.push(make_pair(r - 1, c));
 			dist[r - 1][c] = dist[r][c] + 1;
-			//cout << "push(" << r - 1 << "," << c << "): "<< dist[r - 1][c];
 		}
 		if (c > 0 && dist[r][c - 1] == -1 && state[r][c - 1] != 1) {//(r,c-1)
 			q.push(make_pair(r, c - 1));
 			dist[r][c - 1] = dist[r][c] + 1;
-			//cout << "push(" << r << "," << c - 1 << "): "<< dist[r][c - 1];
 		}
-		//cout << endl;
 	}
-	//cout << "end cal dist\n";
 	maxDistC = c;
 	maxDistR = r;
 }
@@ -235,7 +224,6 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	int curDist = 0;
 
 	//first walk the unpassed, set as condition for while to stop
-	cout << "(unpass)\n";
 	bool haveUnpass = true;
 	while (haveUnpass) {
 		haveUnpass = false;
@@ -313,7 +301,6 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	haveUnpass = true;
 	while (curDist < cur_e && haveUnpass) {
 		haveUnpass = false;
-		cout << "(passed)\n";
 		if (curDist < cur_e) {//energy out or reach farest
 			//walk right
 			while (pos_c + 1 < (*B).getR() ) {
@@ -399,7 +386,6 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	//so walk to unpassed first
 	int freestep = cur_e - curDist;
 	if (freestep > 0) haveMove = true;
-	cout << "freestep:" << freestep << ", curDist:" << curDist << ", cur_e:" << cur_e << endl;
 	while (freestep > 0 ) {
 		haveUnpass = true;
 		while (haveUnpass) {
@@ -493,12 +479,10 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	}
 	if (!haveClean)
 		return false;
-	cout << " finish walking\n";
 	return haveMove;
 }
 
 void Bot::WalkBack(Board* board) {
-	cout << "--walk back\n";
 	//every step walk to dist-1 , and try state==0 first
 
 	int pos_r = this->pos_r, pos_c = this->pos_c;
@@ -572,10 +556,8 @@ void Bot::WalkBack(Board* board) {
 	}
 	if (board->GetState(pos_r, pos_c) == -2) {
 		this->SetEnergy(this->MaxEnergy());
-		std::cout << "back to origin and full energy\n";
 	}
 
-	std::cout << "finish walk back on("<<pos_r<<","<<pos_c<<")\n";
 	return;
 }
 
@@ -596,11 +578,10 @@ int main(int argc, char* argv[])
 	Bot bot;
 	bot.SetMaxEnergy(maxEnergy);
 	bot.SetEnergy(maxEnergy);
-	cout << "col:" << col << ", row:" << row << endl;
 	for (int i = 0; i < row; i++) {
 		for (int j = 0; j < col; j++) {
 			char a;
-			f_in >> a; //cout << "a[" << a << "] ";
+			f_in >> a;
 			if (a == 'R') {
 				board.SetState(i, j, -2);
 				bot.SetPlace(j, i);
@@ -613,19 +594,15 @@ int main(int argc, char* argv[])
 				cout << "p";
 			else
 				cout << "Wrong input on the map!";
-			cout  << a << " ";
 		}
-		cout << endl;
 	}
 	//set distance map
 	board.DistCal(bot.GetR(), bot.GetC());
 	//random walking
 	bool move = true;
 	while (move) {
-		cout << "move~" << endl;
 		move = bot.FreeWalking(&board);
 		if (!move)
-			cout << "stop wandering\n";
 		bot.WalkBack(&board);
 	}
 	//if still are uncleaned places, go there by direct walk
