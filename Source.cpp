@@ -66,8 +66,8 @@ public:
 	int GetC() { return pos_c; }
 	int GetR() { return pos_r; }
 	bool FreeWalking(Board*);
+	void DirectWalking(Board*);
 	void WalkBack(Board*);
-	void DirectWalking(Board*, int, int);
 
  
 	Bot(int x = 0, int y = 0, int e = 0) :pos_c(x), pos_r(y), energy(e) , maxEnergy(e) {}
@@ -79,10 +79,109 @@ private:
 	int energy, maxEnergy;
 };
 
-void Bot::DirectWalking(Board* board, int goal_r, int goal_c) {
-	//check the goal: maxDist(x,y) && state == 0
-	//use stack find the road
-	//stack pop ansPath to bot by move as the order poped
+void Bot::DirectWalking(Board* board) {
+	//cout << "direct walking\n";
+	//if all cleaned, return 
+	bool haveToClean = true;
+	enum direc
+	{
+		up, right, down, left
+	};
+	while (true) {
+		cout << "direct round start, ";
+		haveToClean = false;
+		//check the goal: maxDist(x,y) && state == 0
+		int maxDistr = board->maxDistR, maxDistc = board->maxDistC;
+		if (board->GetState(board->maxDistR, board->maxDistC) != 0) {//cleaned, find next
+			int maxDist = 0;
+			for (int i = 0; i < board->getR(); i++) {
+				for (int j = 0; j < board->getC(); j++) {
+					if (board->GetState(i, j) == 0 && board->GetDist(i, j) > maxDist) {
+						maxDist = board->GetDist(i, j);
+						maxDistr = i; maxDistc = j;
+						haveToClean = true;
+					}
+				}
+			}
+		}
+		else//goal is default to maxdist (r,c)
+			haveToClean = true;
+
+		if (!haveToClean)
+			break;
+		cout << "(" << maxDistr << "," << maxDistc << ")\n";
+
+		board->SetAsClean(maxDistr, maxDistc);
+
+		//use stack find the road
+		stack<int> PathStack;
+		int curDist; 
+		while (true)
+		{
+			curDist = board->GetDist(maxDistr, maxDistc);
+			//walk the dist-1
+			if (curDist == 0) {//back to the origin
+				//PathStack.pop();//start from here
+;				break;
+			}
+			//move left, in edge , not orig, dist-1
+			while (curDist && maxDistc > 0
+				&& board->GetDist(maxDistr, maxDistc - 1) + 1 == curDist) {
+				PathStack.push(left);
+				maxDistc--;
+				board->SetAsClean(maxDistr, maxDistc);
+				curDist--;
+			}
+			//move up
+			while (curDist && maxDistr > 0
+				&& board->GetDist(maxDistr - 1, maxDistc) + 1 == curDist) {
+				PathStack.push(up); 
+				maxDistr--;
+				board->SetAsClean(maxDistr, maxDistc);
+				curDist--;
+			}
+			//move right
+			while (curDist && maxDistc + 1 < board->getC()
+				&& board->GetDist(maxDistr, maxDistc + 1) + 1 == curDist) {
+				PathStack.push(right);
+				curDist--; ++maxDistc;
+				board->SetAsClean(maxDistr, maxDistc);
+			}
+			//move down
+			while (curDist && maxDistr + 1 < board->getR()
+				&& board->GetDist(maxDistr + 1, maxDistc) + 1 == curDist) {
+				PathStack.push(down);
+				curDist--; ++maxDistr;
+				board->SetAsClean(maxDistr, maxDistc);
+			}
+			
+		}
+		//stack pop ansPath to bot by move as the order poped
+		
+		while (!PathStack.empty()) {
+			switch (PathStack.top())
+			{
+			case down:
+				this->MoveU();
+				break;
+			case up:
+				this->MoveD();
+				break;
+			case right:
+				this->MoveL();
+				break;
+			case left:
+				this->MoveR();
+				break;
+			default:
+				break;
+			}
+			PathStack.pop();
+		}
+		//need to walk back
+		this->WalkBack(board);
+	}
+	cout << "finish direct walking\n";
 }
 
 void Board::DistCal(int r, int c) {
@@ -529,7 +628,9 @@ int main(int argc, char* argv[])
 			cout << "stop wandering\n";
 		bot.WalkBack(&board);
 	}
-	//if still are uncleaned places, go there by stack
+	//if still are uncleaned places, go there by direct walk
+	
+	bot.DirectWalking(&board);
 	
 
 	f_in.close();
