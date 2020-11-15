@@ -652,10 +652,10 @@ int main(int argc, char* argv[])
 		int j = 0;
 		for (; j < col - 1; ++j)
 		{
-			f_out_board << board.GetDist(i, j);
+			f_out_board << board.GetState(i, j);
 			f_out_board << " ";
 		}
-		f_out_board << board.GetDist(i, j) << "\n";
+		f_out_board << board.GetState(i, j) << "\n";
 	}
 
 	f_out_board.close();
