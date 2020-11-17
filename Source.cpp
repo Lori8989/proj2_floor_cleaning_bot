@@ -3,6 +3,8 @@
 #include <fstream>
 #include <queue>
 #include <stack>
+#include <random>
+#include <time.h>
 using namespace std;
 
 class Board {
@@ -53,10 +55,10 @@ private:
 class Bot {
 	friend Board;
 public:
-	void MoveU() { pos_r--; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "u";}// ("<<pos_r<<", "<<pos_c<<")\n"; }
-	void MoveR() { pos_c++; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "r"; }//(" << pos_r << ", " << pos_c << ")\n"; }
-	void MoveD() { pos_r++; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "d"; }//(" << pos_r << "," << pos_c << ")\n"; }
-	void MoveL() { pos_c--; Path.push(make_pair(pos_r, pos_c)); energy--; cout << "l"; }//(" << pos_r << "," << pos_c << ")\n"; }
+	void MoveU() { pos_r--; Path.push(make_pair(pos_r, pos_c)); energy--;}// ("<<pos_r<<", "<<pos_c<<")\n"; }
+	void MoveR() { pos_c++; Path.push(make_pair(pos_r, pos_c)); energy--;}//(" << pos_r << ", " << pos_c << ")\n"; }
+	void MoveD() { pos_r++; Path.push(make_pair(pos_r, pos_c)); energy--;}//(" << pos_r << "," << pos_c << ")\n"; }
+	void MoveL() { pos_c--; Path.push(make_pair(pos_r, pos_c)); energy--; }//(" << pos_r << "," << pos_c << ")\n"; }
 	queue<pair<int, int>> AnsPath() { return Path; }
 	void SetPlace(int i, int j) { pos_c = i; pos_r = j; }
 	void SetMaxEnergy(int e) { maxEnergy = e; }
@@ -77,10 +79,9 @@ private:
 	queue<pair<int, int>> Path;
 	int pos_c, pos_r;
 	int energy, maxEnergy;
-};//
+};
 
 void Bot::DirectWalking(Board* board) {
-	//cout << "direct walking\n";
 	//if all cleaned, return 
 	bool haveToClean = true;
 	enum direc
@@ -88,7 +89,6 @@ void Bot::DirectWalking(Board* board) {
 		up, right, down, left
 	};
 	while (true) {
-		cout << "direct round start, ";
 		haveToClean = false;
 		//check the goal: maxDist(x,y) && state == 0
 		int maxDistr = board->maxDistR, maxDistc = board->maxDistC;
@@ -109,7 +109,7 @@ void Bot::DirectWalking(Board* board) {
 
 		if (!haveToClean)
 			break;
-		cout << "(" << maxDistr << "," << maxDistc << ")\n";
+		
 
 		board->SetAsClean(maxDistr, maxDistc);
 
@@ -181,11 +181,9 @@ void Bot::DirectWalking(Board* board) {
 		//need to walk back
 		this->WalkBack(board);
 	}
-	cout << "finish direct walking\n";
 }
 
 void Board::DistCal(int r, int c) {
-	cout << "r:" << r << ",c:" << c << endl;
 	//(x,y) is the start
 	//use while loop build up the distance map
 	//BFS, queue
@@ -198,113 +196,121 @@ void Board::DistCal(int r, int c) {
 		r = q.front().first;
 		c = q.front().second;
 		q.pop();
-		//cout << "cur:(" << r << "," << c << ")---";
 		if (c + 1 < col && dist[r][c + 1] == -1 && state[r][c + 1] != 1) {// (r,c+1)
 			q.push(make_pair(r, c + 1));
 			dist[r][c + 1] = dist[r][c] + 1;
-			//cout << "push(" << r << "," << c + 1 << "): "<< dist[r][c + 1];
 		}
 		if (r + 1 < row && dist[r + 1][c] == -1 && state[r + 1][c] != 1) {//(r+1,c)
 			q.push(make_pair(r + 1, c));
 			dist[r + 1][c] = dist[r][c] + 1;
-			//cout << "push(" << r + 1 << "," << c << "): "<< dist[r + 1][c];
 		}
 		if (r > 0 && dist[r - 1][c] == -1 && state[r - 1][c] != 1) {//(r-1,c)
 			q.push(make_pair(r - 1, c));
 			dist[r - 1][c] = dist[r][c] + 1;
-			//cout << "push(" << r - 1 << "," << c << "): "<< dist[r - 1][c];
 		}
 		if (c > 0 && dist[r][c - 1] == -1 && state[r][c - 1] != 1) {//(r,c-1)
 			q.push(make_pair(r, c - 1));
 			dist[r][c - 1] = dist[r][c] + 1;
-			//cout << "push(" << r << "," << c - 1 << "): "<< dist[r][c - 1];
 		}
-		//cout << endl;
 	}
-	//cout << "end cal dist\n";
 	maxDistC = c;
 	maxDistR = r;
 }
 
 bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	bool haveMove = false;
-	int pos_c = this->GetC(), pos_r = this->GetR(), cur_e = this->CurEnergy() / 2;
+	int direc, pos_c = this->GetC(), pos_r = this->GetR(), cur_e = this->CurEnergy() / 2;
 	int maxDistC = (*B).maxDistC, maxDistR = (*B).maxDistR;
+
+	
 
 	//path = e = dist[far] + k (after reach [far] can move k steps)
 	int curDist = 0;
 
 	//first walk the unpassed, set as condition for while to stop
-	cout << "(unpass)\n";
 	bool haveUnpass = true;
 	while (haveUnpass) {
 		haveUnpass = false;
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk right
-			//in edge, not endpoint, unpass
-			while (pos_c + 1 < (*B).getC() && (*B).GetState(pos_r,pos_c + 1) == 0 ) {
-				//won't go dist[obj] = -1 and choose step that is +1 dist
-				if ((*B).GetDist(pos_r, pos_c + 1) == curDist + 1) {
-					this->MoveR();
-					curDist++; pos_c++;
-					(*B).SetAsClean(pos_r, pos_c);
-					if (curDist >= cur_e)
+		srand(time(NULL));
+		direc = rand() % 4;
+		switch (direc)
+		{
+		case 0:
+			if (curDist < cur_e) {//energy out or reach farest
+				//walk right
+				//in edge, not endpoint, unpass
+				while (pos_c + 1 < (*B).getC() && (*B).GetState(pos_r, pos_c + 1) == 0) {
+					//won't go dist[obj] = -1 and choose step that is +1 dist
+					if ((*B).GetDist(pos_r, pos_c + 1) == curDist + 1) {
+						this->MoveR();
+						curDist++; pos_c++;
+						(*B).SetAsClean(pos_r, pos_c);
+						if (curDist >= cur_e)
+							break;
+					}
+					else
 						break;
 				}
-				else
-					break;
-			}
 
-		}
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk up
-			while (pos_r > 1 && (*B).GetState(pos_r - 1, pos_c) == 0) {
-				if ((*B).GetDist(pos_r - 1, pos_c) == curDist + 1) {//dist[obj] = -1
-					this->MoveU();
-					curDist++; pos_r--;
-					(*B).SetAsClean(pos_r, pos_c);
-					haveUnpass = true;
-					if (curDist >= cur_e)
+			}
+			break;
+		case 1:
+			if (curDist < cur_e) {//energy out or reach farest
+						//walk up
+				while (pos_r > 1 && (*B).GetState(pos_r - 1, pos_c) == 0) {
+					if ((*B).GetDist(pos_r - 1, pos_c) == curDist + 1) {//dist[obj] = -1
+						this->MoveU();
+						curDist++; pos_r--;
+						(*B).SetAsClean(pos_r, pos_c);
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
+					}
+					else
 						break;
 				}
-				else
-					break;
-			}
 
-		}
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk left
-			while (pos_c > 1 && (*B).GetState(pos_r, pos_c - 1) == 0) {
-				if ((*B).GetDist(pos_r, pos_c - 1) == curDist + 1) {//dist[obj] = -1
-					this->MoveL();
-					curDist++; pos_c--;
-					(*B).SetAsClean(pos_r, pos_c);
-					haveUnpass = true;
-					if (curDist >= cur_e)
+			}
+			break;
+		case 2:
+			if (curDist < cur_e) {//energy out or reach farest
+						//walk left
+				while (pos_c > 1 && (*B).GetState(pos_r, pos_c - 1) == 0) {
+					if ((*B).GetDist(pos_r, pos_c - 1) == curDist + 1) {//dist[obj] = -1
+						this->MoveL();
+						curDist++; pos_c--;
+						(*B).SetAsClean(pos_r, pos_c);
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
+					}
+					else
 						break;
 				}
-				else
-					break;
+
 			}
-
-		}
-
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk down
-			while (pos_r + 1 < (*B).getR() && (*B).GetState(pos_r + 1, pos_c) == 0) {
-				if ((*B).GetDist(pos_r + 1, pos_c) == curDist + 1) {//dist[obj] = -1
-					this->MoveD();
-					curDist++; pos_r++;
-					(*B).SetAsClean(pos_r, pos_c);
-					haveUnpass = true;
-					if (curDist >= cur_e)
+			break;
+		case 3:
+			if (curDist < cur_e) {//energy out or reach farest
+						//walk down
+				while (pos_r + 1 < (*B).getR() && (*B).GetState(pos_r + 1, pos_c) == 0) {
+					if ((*B).GetDist(pos_r + 1, pos_c) == curDist + 1) {//dist[obj] = -1
+						this->MoveD();
+						curDist++; pos_r++;
+						(*B).SetAsClean(pos_r, pos_c);
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
+					}
+					else
 						break;
 				}
-				else
-					break;
-			}
 
+			}
+			break;
 		}
+	
+		
 		if (haveUnpass)
 			haveMove = true;
 	}
@@ -313,83 +319,95 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	haveUnpass = true;
 	while (curDist < cur_e && haveUnpass) {
 		haveUnpass = false;
-		cout << "(passed)\n";
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk right
-			while (pos_c + 1 < (*B).getR() ) {
-				if ((*B).GetDist(pos_r, pos_c + 1) == curDist + 1) {//dist[obj] = -1
-					this->MoveR();
-					curDist++; pos_c++;
-					if ((*B).GetState(pos_r, pos_c) == 0) {
-						haveClean = true;
-						(*B).SetAsClean(pos_r, pos_c);
+		srand(time(NULL));
+		direc = rand() % 4;
+		switch (direc) {
+		case 0:
+			if (curDist < cur_e) {//energy out or reach farest
+						//walk right
+				while (pos_c + 1 < (*B).getR()) {
+					if ((*B).GetDist(pos_r, pos_c + 1) == curDist + 1) {//dist[obj] = -1
+						this->MoveR();
+						curDist++; pos_c++;
+						if ((*B).GetState(pos_r, pos_c) == 0) {
+							haveClean = true;
+							(*B).SetAsClean(pos_r, pos_c);
+						}
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
 					}
-					haveUnpass = true;
-					if (curDist >= cur_e)
+					else
 						break;
 				}
-				else
-					break;
-			}
 
-		}
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk up
-			while (pos_r > 1 ) {
-				if ((*B).GetDist(pos_r - 1, pos_c) == curDist + 1) {//dist[obj] = -1
-					this->MoveU();
-					curDist++; pos_r--;
-					if ((*B).GetState(pos_r, pos_c) == 0) {
-						haveClean = true;
-						(*B).SetAsClean(pos_r, pos_c);
+			}
+			break;
+		case 1:
+			if (curDist < cur_e) {//energy out or reach farest
+						//walk up
+				while (pos_r > 1) {
+					if ((*B).GetDist(pos_r - 1, pos_c) == curDist + 1) {//dist[obj] = -1
+						this->MoveU();
+						curDist++; pos_r--;
+						if ((*B).GetState(pos_r, pos_c) == 0) {
+							haveClean = true;
+							(*B).SetAsClean(pos_r, pos_c);
+						}
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
 					}
-					haveUnpass = true;
-					if (curDist >= cur_e)
+					else
 						break;
 				}
-				else
-					break;
-			}
 
-		}
-		if (curDist < cur_e) {//energy out or reach farest
-			//walk left
-			while (pos_c > 1 ) {
-				if ((*B).GetDist(pos_r, pos_c - 1) == curDist + 1) {//dist[obj] = -1
-					this->MoveL();
-					curDist++; pos_c--;
-					if ((*B).GetState(pos_r, pos_c) == 0) {
-						haveClean = true;
-						(*B).SetAsClean(pos_r, pos_c);
+			}
+			break;
+		case 2:
+			if (curDist < cur_e) {//energy out or reach farest
+						//walk left
+				while (pos_c > 1) {
+					if ((*B).GetDist(pos_r, pos_c - 1) == curDist + 1) {//dist[obj] = -1
+						this->MoveL();
+						curDist++; pos_c--;
+						if ((*B).GetState(pos_r, pos_c) == 0) {
+							haveClean = true;
+							(*B).SetAsClean(pos_r, pos_c);
+						}
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
 					}
-					haveUnpass = true;
-					if (curDist >= cur_e)
+					else
 						break;
 				}
-				else
-					break;
-			}
 
-		}
-		if (curDist < cur_e) {//energy out
-			//walk down
-			while (pos_r + 1 < (*B).getR()) {
-				if ((*B).GetDist(pos_r + 1, pos_c) == curDist + 1) {//dist[obj] = -1
-					this->MoveD();
-					curDist++; pos_r++;
-					if ((*B).GetState(pos_r, pos_c) == 0) {
-						haveClean = true;
-						(*B).SetAsClean(pos_r, pos_c);
+			}
+			break;
+		case 3:
+			if (curDist < cur_e) {//energy out
+						//walk down
+				while (pos_r + 1 < (*B).getR()) {
+					if ((*B).GetDist(pos_r + 1, pos_c) == curDist + 1) {//dist[obj] = -1
+						this->MoveD();
+						curDist++; pos_r++;
+						if ((*B).GetState(pos_r, pos_c) == 0) {
+							haveClean = true;
+							(*B).SetAsClean(pos_r, pos_c);
+						}
+						haveUnpass = true;
+						if (curDist >= cur_e)
+							break;
 					}
-					haveUnpass = true;
-					if (curDist >= cur_e)
+					else
 						break;
 				}
-				else
-					break;
-			}
 
+			}
+			break;
 		}
+	
 		if (haveUnpass)
 			haveMove = true;
 	}
@@ -399,12 +417,11 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 	//so walk to unpassed first
 	int freestep = cur_e - curDist;
 	if (freestep > 0) haveMove = true;
-	cout << "freestep:" << freestep << ", curDist:" << curDist << ", cur_e:" << cur_e << endl;
 	while (freestep > 0 ) {
 		haveUnpass = true;
 		while (haveUnpass) {
 			haveUnpass = false;
-			if (freestep && pos_r + 1 < (*B).getR()&& (*B).GetState(pos_r + 1, pos_c) == 0) {
+			if (freestep && pos_r + 1 < (*B).getR() && (*B).GetState(pos_r + 1, pos_c) == 0) {
 				//walk down
 				this->MoveD();
 				freestep--; pos_r++;
@@ -444,61 +461,73 @@ bool Bot::FreeWalking(Board* B) {//allways from origin to energy out
 				}
 				haveUnpass = true;
 			}
+			
 		}
 		//then try every pass/unpass block
 		haveUnpass = true;
 		while (haveUnpass && freestep) {
 			haveUnpass = false;
-			if (freestep && pos_r + 2 < (*B).getR() && B->GetState(pos_r + 1,pos_c) < 1) {
-				//walk down
-				this->MoveD();
-				freestep--; pos_r++;
-				if ((*B).GetState(pos_r, pos_c) == 0) {
-					haveClean = true;
-					(*B).SetAsClean(pos_r, pos_c);
+
+			srand(time(NULL));
+			direc = rand() % 4;
+			switch (direc) {
+			case 0:
+				if (freestep && pos_r + 2 < (*B).getR() && B->GetState(pos_r + 1, pos_c) < 1) {
+					//walk down
+					this->MoveD();
+					freestep--; pos_r++;
+					if ((*B).GetState(pos_r, pos_c) == 0) {
+						haveClean = true;
+						(*B).SetAsClean(pos_r, pos_c);
+					}
+					haveUnpass = true;
 				}
-				haveUnpass = true;
-			}
-			if (freestep && pos_c > 1 && B->GetState(pos_r, pos_c - 1) < 1) {
-				//walk left
-				this->MoveL();
-				freestep--; pos_c--;
-				if ((*B).GetState(pos_r, pos_c) == 0) {
-					haveClean = true;
-					(*B).SetAsClean(pos_r, pos_c);
+				break;
+			case 1:
+				if (freestep && pos_c > 1 && B->GetState(pos_r, pos_c - 1) < 1) {
+					//walk left
+					this->MoveL();
+					freestep--; pos_c--;
+					if ((*B).GetState(pos_r, pos_c) == 0) {
+						haveClean = true;
+						(*B).SetAsClean(pos_r, pos_c);
+					}
+					haveUnpass = true;
 				}
-				haveUnpass = true;
-			}
-			if (freestep && pos_r > 1 && B->GetState(pos_r - 1, pos_c) < 1) {
-				//walk up
-				this->MoveU();
-				freestep--; pos_r--;
-				if ((*B).GetState(pos_r, pos_c) == 0) {
-					haveClean = true;
-					(*B).SetAsClean(pos_r, pos_c);
+				break;
+			case 2:
+				if (freestep && pos_r > 1 && B->GetState(pos_r - 1, pos_c) < 1) {
+					//walk up
+					this->MoveU();
+					freestep--; pos_r--;
+					if ((*B).GetState(pos_r, pos_c) == 0) {
+						haveClean = true;
+						(*B).SetAsClean(pos_r, pos_c);
+					}
+					haveUnpass = true;
 				}
-				haveUnpass = true;
-			}
-			if (freestep && pos_c + 2 < (*B).getC() && B->GetState(pos_r, pos_c + 1) < 1) {
-				//walk right if in edge, unpass, energy enough
-				this->MoveR();
-				freestep--; pos_c++;
-				if ((*B).GetState(pos_r, pos_c) == 0) {
-					haveClean = true;
-					(*B).SetAsClean(pos_r, pos_c);
+				break;
+			case 3:
+				if (freestep && pos_c + 2 < (*B).getC() && B->GetState(pos_r, pos_c + 1) < 1) {
+					//walk right if in edge, unpass, energy enough
+					this->MoveR();
+					freestep--; pos_c++;
+					if ((*B).GetState(pos_r, pos_c) == 0) {
+						haveClean = true;
+						(*B).SetAsClean(pos_r, pos_c);
+					}
+					haveUnpass = true;
 				}
-				haveUnpass = true;
+				break;
 			}
 		}
 	}
 	if (!haveClean)
 		return false;
-	cout << " finish walking\n";
 	return haveMove;
 }
 
 void Bot::WalkBack(Board* board) {
-	cout << "--walk back\n";
 	//every step walk to dist-1 , and try state==0 first
 
 	int pos_r = this->pos_r, pos_c = this->pos_c;
@@ -572,10 +601,8 @@ void Bot::WalkBack(Board* board) {
 	}
 	if (board->GetState(pos_r, pos_c) == -2) {
 		this->SetEnergy(this->MaxEnergy());
-		std::cout << "back to origin and full energy\n";
 	}
 
-	std::cout << "finish walk back on("<<pos_r<<","<<pos_c<<")\n";
 	return;
 }
 
@@ -596,11 +623,10 @@ int main(int argc, char* argv[])
 	Bot bot;
 	bot.SetMaxEnergy(maxEnergy);
 	bot.SetEnergy(maxEnergy);
-	cout << "col:" << col << ", row:" << row << endl;
 	for (int i = 0; i < row; i++) {
 		for (int j = 0; j < col; j++) {
 			char a;
-			f_in >> a; //cout << "a[" << a << "] ";
+			f_in >> a;
 			if (a == 'R') {
 				board.SetState(i, j, -2);
 				bot.SetPlace(j, i);
@@ -613,19 +639,15 @@ int main(int argc, char* argv[])
 				cout << "p";
 			else
 				cout << "Wrong input on the map!";
-			cout  << a << " ";
 		}
-		cout << endl;
 	}
 	//set distance map
 	board.DistCal(bot.GetR(), bot.GetC());
 	//random walking
 	bool move = true;
 	while (move) {
-		cout << "move~" << endl;
 		move = bot.FreeWalking(&board);
 		if (!move)
-			cout << "stop wandering\n";
 		bot.WalkBack(&board);
 	}
 	//if still are uncleaned places, go there by direct walk
@@ -664,7 +686,7 @@ int main(int argc, char* argv[])
 
 
 	std::ofstream f_out_path;
-	f_out_path.open("path_after.final", std::ofstream::out | std::ofstream::trunc);
+	f_out_path.open("test.path", std::ofstream::out | std::ofstream::trunc);
 	if (!f_out_path.is_open())
 		cout << "close file fails! f_out_path\n";
 	else
