@@ -77,7 +77,7 @@ private:
 	queue<pair<int, int>> Path;
 	int pos_c, pos_r;
 	int energy, maxEnergy;
-};
+};//
 
 void Bot::DirectWalking(Board* board) {
 	//cout << "direct walking\n";
